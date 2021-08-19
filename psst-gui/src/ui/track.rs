@@ -5,7 +5,8 @@ use druid::{
     kurbo::Line,
     piet::StrokeStyle,
     widget::{
-        Controller, ControllerHost, CrossAxisAlignment, Flex, Label, List, ListIter, Painter,
+        Button, Controller, ControllerHost, CrossAxisAlignment, Flex, Label, List, ListIter,
+        Painter,
     },
     Data, Env, Event, EventCtx, Lens, LensExt, LocalizedString, Menu, MenuItem, RenderContext,
     TextAlignment, Widget, WidgetExt,
@@ -274,6 +275,13 @@ fn track_widget(display: TrackDisplay) -> impl Widget<TrackRow> {
         major.add_default_spacer();
         major.add_child(track_popularity);
     }
+
+    let download_track = Button::<Arc<Track>>::new("D")
+        .on_click(|_, track, _| {
+            println!("Download track {}", track.name);
+        })
+        .lens(TrackRow::track);
+    major.add_child(download_track);
 
     let track_duration =
         Label::<Arc<Track>>::dynamic(|track, _| utils::as_minutes_and_seconds(&track.duration))
