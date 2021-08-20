@@ -1,4 +1,4 @@
-use std::{fs::File, io, thread};
+use std::{fs::File, io, path::PathBuf, sync::Arc, thread};
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 
@@ -12,9 +12,11 @@ use crate::{
     session::SessionService,
 };
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct CaptureItem {
     pub item_id: ItemId,
+    pub name: Arc<str>,
+    pub artist: Arc<str>,
 }
 
 impl CaptureItem {
@@ -43,6 +45,7 @@ pub struct Capturer {
     cdn: CdnHandle,
     cache: CacheHandle,
     config: PlaybackConfig,
+    destination_dir: PathBuf,
     event_sender: Sender<CapturerEvent>,
     event_receiver: Receiver<CapturerEvent>,
 }
@@ -53,6 +56,7 @@ impl Capturer {
         cdn: CdnHandle,
         cache: CacheHandle,
         config: PlaybackConfig,
+        destination_dir: PathBuf,
     ) -> Self {
         let (event_sender, event_receiver) = unbounded();
         Self {
@@ -60,6 +64,7 @@ impl Capturer {
             cdn,
             cache,
             config,
+            destination_dir,
             event_sender,
             event_receiver,
             state: CapturerState::Idle,
@@ -95,24 +100,24 @@ impl Capturer {
 
     fn download(&mut self, item: CaptureItem) {
         self.event_sender
-            .send(CapturerEvent::Downloading { item })
+            .send(CapturerEvent::Downloading { item: item.clone() })
             .expect("Failed to send CapturerEvent::Downloading");
-        self.state = CapturerState::Downloading { item };
+        self.state = CapturerState::Downloading { item: item.clone() };
 
-        let downloading_handle = thread::spawn({
+        thread::spawn({
             let event_sender = self.event_sender.clone();
             let session = self.session.clone();
             let cdn = self.cdn.clone();
             let cache = self.cache.clone();
             let config = self.config.clone();
+            let destination_dir = self.destination_dir.clone();
             move || {
                 let load_result = item.load(&session, cdn, cache, &config);
                 match load_result {
                     Ok(mut loaded_item) => {
-                        let mut file = File::create(format!(
-                            "/home/sem/Downloads/{}.ogg",
-                            item.item_id.to_base62()
-                        ))
+                        let mut file = File::create(
+                            destination_dir.join(format!("{} - {}.ogg", item.artist, item.name)),
+                        )
                         .unwrap();
                         io::copy(&mut loaded_item.source, &mut file).unwrap();
                     }

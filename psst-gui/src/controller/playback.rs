@@ -21,6 +21,7 @@ use psst_core::{
 use souvlaki::{
     MediaControlEvent, MediaControls, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig,
 };
+use platform_dirs::UserDirs;
 
 use crate::{
     cmd,
@@ -70,11 +71,13 @@ impl PlaybackController {
             config.clone(),
             remote,
         );
+        let download_dir = UserDirs::new().unwrap().download_dir;
         let mut capturer = Capturer::new(
             session.clone(),
             Cdn::new(session, proxy_url.as_deref()).unwrap(),
             Cache::new(cache_dir.clone()).unwrap(),
             config.clone(),
+            download_dir,
         );
         self.capturer_sender.replace(capturer.event_sender());
         let sender = player.event_sender();
@@ -299,7 +302,11 @@ impl PlaybackController {
             .as_mut()
             .unwrap()
             .send(CapturerEvent::Command(CapturerCommand::Download {
-                item: CaptureItem { item_id: *item.id },
+                item: CaptureItem {
+                    item_id: *item.id,
+                    name: item.name.clone(),
+                    artist: item.artists[0].name.clone(),
+                },
             }))
             .unwrap();
     }
