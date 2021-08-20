@@ -277,8 +277,8 @@ fn track_widget(display: TrackDisplay) -> impl Widget<TrackRow> {
     }
 
     let download_track = Button::<Arc<Track>>::new("D")
-        .on_click(|_, track, _| {
-            println!("Download track {}", track.name);
+        .on_click(|ctx, track, _| {
+            ctx.submit_command(cmd::CAPTURE.with((**track).clone()));
         })
         .lens(TrackRow::track);
     major.add_child(download_track);

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use druid::{Selector, WidgetId};
 
-use crate::data::{Nav, PlaybackPayload, QueueBehavior, TrackId};
+use crate::data::{Nav, PlaybackPayload, QueueBehavior, Track, TrackId};
 
 // Widget IDs
 
@@ -44,3 +44,7 @@ pub const PLAY_NEXT: Selector = Selector::new("app.play-next");
 pub const PLAY_STOP: Selector = Selector::new("app.play-stop");
 pub const PLAY_QUEUE_BEHAVIOR: Selector<QueueBehavior> = Selector::new("app.play-queue-behavior");
 pub const PLAY_SEEK: Selector<f64> = Selector::new("app.play-seek");
+
+// Capture control
+
+pub const CAPTURE: Selector<Track> = Selector::new("app.capture");

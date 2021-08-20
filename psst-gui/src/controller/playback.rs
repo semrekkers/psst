@@ -10,6 +10,7 @@ use druid::{
     Code, ExtEventSink, InternalLifeCycle, KbKey, WindowHandle,
 };
 use psst_core::{
+    audio_capturer::{CaptureItem, Capturer, CapturerCommand, CapturerEvent},
     audio_normalize::NormalizationLevel,
     audio_output::AudioOutput,
     audio_player::{PlaybackConfig, PlaybackItem, Player, PlayerCommand, PlayerEvent},
@@ -25,7 +26,7 @@ use crate::{
     cmd,
     data::{
         AppState, Config, Playback, PlaybackOrigin, PlaybackState, QueueBehavior, QueuedTrack,
-        TrackId,
+        Track, TrackId,
     },
 };
 
@@ -34,6 +35,8 @@ pub struct PlaybackController {
     thread: Option<JoinHandle<()>>,
     output_thread: Option<JoinHandle<()>>,
     media_controls: Option<MediaControls>,
+
+    capturer_sender: Option<Sender<CapturerEvent>>,
 }
 
 impl PlaybackController {
@@ -43,6 +46,7 @@ impl PlaybackController {
             thread: None,
             output_thread: None,
             media_controls: None,
+            capturer_sender: None,
         }
     }
 
@@ -61,11 +65,18 @@ impl PlaybackController {
         let proxy_url = Config::proxy();
         let player = Player::new(
             session.clone(),
-            Cdn::new(session, proxy_url.as_deref()).unwrap(),
-            Cache::new(cache_dir).unwrap(),
-            config,
+            Cdn::new(session.clone(), proxy_url.as_deref()).unwrap(),
+            Cache::new(cache_dir.clone()).unwrap(),
+            config.clone(),
             remote,
         );
+        let mut capturer = Capturer::new(
+            session.clone(),
+            Cdn::new(session, proxy_url.as_deref()).unwrap(),
+            Cache::new(cache_dir.clone()).unwrap(),
+            config.clone(),
+        );
+        self.capturer_sender.replace(capturer.event_sender());
         let sender = player.event_sender();
         let source = player.audio_source();
 
@@ -74,6 +85,11 @@ impl PlaybackController {
         });
         let output_thread = thread::spawn(move || {
             output.start_playback(source).expect("Playback failed");
+        });
+        thread::spawn(move || {
+            for event in capturer.event_receiver() {
+                capturer.handle(event);
+            }
         });
 
         let hwnd = {
@@ -277,6 +293,16 @@ impl PlaybackController {
             },
         }));
     }
+
+    fn capture(&mut self, item: &Track) {
+        self.capturer_sender
+            .as_mut()
+            .unwrap()
+            .send(CapturerEvent::Command(CapturerCommand::Download {
+                item: CaptureItem { item_id: *item.id },
+            }))
+            .unwrap();
+    }
 }
 
 impl<W> Controller<AppState, W> for PlaybackController
@@ -391,6 +417,12 @@ where
                         Duration::from_secs_f64(now_playing.item.duration.as_secs_f64() * fraction);
                     self.seek(position);
                 }
+                ctx.set_handled();
+            }
+            //
+            Event::Command(cmd) if cmd.is(cmd::CAPTURE) => {
+                let item = cmd.get_unchecked(cmd::CAPTURE);
+                self.capture(item);
                 ctx.set_handled();
             }
             //

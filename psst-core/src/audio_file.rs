@@ -22,7 +22,8 @@ use crate::{
     util::OffsetFile,
 };
 
-pub type FileAudioSource = VorbisDecoder<OffsetFile<AudioDecrypt<BufReader<StreamReader>>>>;
+pub type RawFileSource = OffsetFile<AudioDecrypt<BufReader<StreamReader>>>;
+pub type FileAudioSource = VorbisDecoder<RawFileSource>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AudioPath {
@@ -107,6 +108,17 @@ impl AudioFile {
         let encoded = OffsetFile::new(decrypted, self.header_length())?;
         let decoded = VorbisDecoder::new(encoded)?;
         Ok((decoded, normalization))
+    }
+
+    pub fn raw_source(&self, key: AudioKey) -> Result<RawFileSource, Error> {
+        let reader = match self {
+            Self::Streamed { streamed_file, .. } => streamed_file.storage.reader()?,
+            Self::Cached { cached_file, .. } => cached_file.storage.reader()?,
+        };
+        let buffered = BufReader::new(reader);
+        let decrypted = AudioDecrypt::new(key, buffered);
+        let raw = OffsetFile::new(decrypted, self.header_length())?;
+        Ok(raw)
     }
 
     fn header_length(&self) -> u64 {

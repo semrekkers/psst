@@ -68,7 +68,7 @@ impl PlaybackItem {
     }
 }
 
-fn load_audio_path(
+pub fn load_audio_path(
     item_id: ItemId,
     session: &SessionService,
     cache: &CacheHandle,
@@ -148,7 +148,7 @@ fn load_track(
     }
 }
 
-fn load_audio_key(
+pub fn load_audio_key(
     path: &AudioPath,
     session: &SessionService,
     cache: &CacheHandle,
