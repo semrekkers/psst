@@ -1,4 +1,5 @@
 use std::{
+    sync::Arc,
     thread::{self, JoinHandle},
     time::Duration,
 };
@@ -24,6 +25,7 @@ use souvlaki::{
 use platform_dirs::UserDirs;
 
 use crate::{
+    WebApi,
     cmd,
     data::{
         AppState, Config, Playback, PlaybackOrigin, PlaybackState, QueueBehavior, QueuedTrack,
@@ -310,6 +312,23 @@ impl PlaybackController {
             }))
             .unwrap();
     }
+
+    fn capture_playlist(&self, playlist_id: &Arc<str>) {
+        let id = playlist_id.clone();
+        let sender = self.capturer_sender.as_ref().unwrap().clone();
+        thread::spawn(move || {
+            let tracks = WebApi::global().get_playlist_tracks(id.as_ref()).unwrap();
+            for item in tracks {
+                sender.send(CapturerEvent::Command(CapturerCommand::Download {
+                    item: CaptureItem {
+                        item_id: *item.id,
+                        name: item.name.clone(),
+                        artist: item.artists[0].name.clone(),
+                    },
+                })).unwrap();
+            }
+        });
+    }
 }
 
 impl<W> Controller<AppState, W> for PlaybackController
@@ -430,6 +449,11 @@ where
             Event::Command(cmd) if cmd.is(cmd::CAPTURE) => {
                 let item = cmd.get_unchecked(cmd::CAPTURE);
                 self.capture(item);
+                ctx.set_handled();
+            }
+            Event::Command(cmd) if cmd.is(cmd::CAPTURE_PLAYLIST) => {
+                let playlist_id = cmd.get_unchecked(cmd::CAPTURE_PLAYLIST);
+                self.capture_playlist(playlist_id);
                 ctx.set_handled();
             }
             //

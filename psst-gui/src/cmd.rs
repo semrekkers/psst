@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use druid::{Selector, WidgetId};
@@ -48,3 +49,4 @@ pub const PLAY_SEEK: Selector<f64> = Selector::new("app.play-seek");
 // Capture control
 
 pub const CAPTURE: Selector<Track> = Selector::new("app.capture");
+pub const CAPTURE_PLAYLIST: Selector<Arc<str>> = Selector::new("app.capture-playlist");

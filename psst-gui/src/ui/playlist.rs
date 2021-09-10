@@ -136,5 +136,9 @@ fn playlist_menu(playlist: &Playlist) -> Menu<AppState> {
         .command(cmd::COPY.with(playlist.url())),
     );
 
+    menu = menu.entry(
+        MenuItem::new("Download Playlist").command(cmd::CAPTURE_PLAYLIST.with(playlist.id.clone())),
+    );
+
     menu
 }
