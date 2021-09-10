@@ -276,13 +276,6 @@ fn track_widget(display: TrackDisplay) -> impl Widget<TrackRow> {
         major.add_child(track_popularity);
     }
 
-    let download_track = Button::<Arc<Track>>::new("D")
-        .on_click(|ctx, track, _| {
-            ctx.submit_command(cmd::CAPTURE.with((**track).clone()));
-        })
-        .lens(TrackRow::track);
-    major.add_child(download_track);
-
     let track_duration =
         Label::<Arc<Track>>::dynamic(|track, _| utils::as_minutes_and_seconds(&track.duration))
             .with_text_size(theme::TEXT_SIZE_SMALL)
@@ -364,6 +357,10 @@ fn track_menu(row: &TrackRow) -> Menu<AppState> {
             LocalizedString::new("menu-item-copy-link").with_placeholder("Copy Link to Track"),
         )
         .command(cmd::COPY.with(row.track.url())),
+    );
+
+    menu = menu.entry(
+        MenuItem::new("Download Track").command(cmd::CAPTURE.with((*row.track).clone()))
     );
 
     menu = menu.separator();
